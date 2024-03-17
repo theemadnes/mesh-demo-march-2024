@@ -112,3 +112,14 @@ done
 # check metrics with sum(rate(istio_io:service_server_request_count{monitored_resource="istio_canonical_service",service_authentication_policy="MUTUAL_TLS"}[${__interval}]))
 
 ```
+
+### edit CM for metadata
+
+- edit CM
+- edit deployment
+
+### test from VM
+
+```
+hey -n 99999999999999 -c 2 -q 20 https://frontend.endpoints.e2m-private-test-01.cloud.goog
+```
