@@ -83,4 +83,17 @@ for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
 do 
     kubectl --context=$CONTEXT apply -f locality/
 done
+
+# apply all authz stuff
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f authz/
+done
+
+# test removal of backend authz policy
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT delete -f authz/backend.yaml
+done
+
 ```
