@@ -96,4 +96,19 @@ do
     kubectl --context=$CONTEXT delete -f authz/backend.yaml
 done
 
+# test explicit denial
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f authz-explicit-deny/
+done
+
+# remove explicit denial
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT delete -f authz-explicit-deny/
+done
+
+# can check with log filter for labels.response_details = "AuthzDenied"
+# check metrics with sum(rate(istio_io:service_server_request_count{monitored_resource="istio_canonical_service",service_authentication_policy="MUTUAL_TLS"}[${__interval}]))
+
 ```
