@@ -123,3 +123,27 @@ done
 ```
 hey -n 99999999999999 -c 2 -q 20 https://frontend.endpoints.e2m-private-test-01.cloud.goog
 ```
+
+### create test pod for auth 
+
+```
+kubectl run -i --tty busybox --image=busybox --restart=Never -- sh
+
+watch -n 0.5 wget -qO- http://whereami-frontend.frontend
+```
+
+### create strict mTLS policy
+
+```
+# apply
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f peer-auth/
+done
+
+# remove 
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT delete -f peer-auth/
+done
+```
