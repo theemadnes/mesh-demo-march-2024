@@ -113,6 +113,19 @@ done
 
 ```
 
+### reset environment
+
+```
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT delete -f authz-explicit-deny/
+    kubectl --context=$CONTEXT delete -f locality/
+    kubectl --context=$CONTEXT delete -f authz/
+    kubectl --context=$CONTEXT delete -f peer-auth/
+done
+
+```
+
 ### edit CM for metadata
 
 - edit CM
@@ -124,12 +137,20 @@ done
 hey -n 99999999999999 -c 2 -q 20 https://frontend.endpoints.e2m-private-test-01.cloud.goog
 ```
 
+### test from Cloud Shell
+
+```
+watch -n 0.1 'curl -s https://frontend.endpoints.e2m-private-test-01.cloud.goog | jq'
+```
+
 ### create test pod for auth 
 
 ```
-kubectl run -i --tty busybox --image=busybox --restart=Never -- sh
+kubectl run whereami-test --image=us-docker.pkg.dev/google-samples/containers/gke/whereami:v1.2.22
 
-watch -n 0.5 wget -qO- http://whereami-frontend.frontend
+kubectl exec --stdin --tty whereami-test -- /bin/sh
+
+while true; do curl http://whereami-frontend.frontend; sleep 0.01; done
 ```
 
 ### create strict mTLS policy
@@ -145,5 +166,46 @@ done
 for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
 do 
     kubectl --context=$CONTEXT delete -f peer-auth/
+done
+```
+
+### authz journey
+
+```
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f authz/asm-ingress.yaml
+    kubectl --context=$CONTEXT apply -f authz/frontend.yaml
+    kubectl --context=$CONTEXT apply -f authz/allow-none.yaml
+done
+
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f authz/backend.yaml
+done
+```
+
+### apply locality
+
+```
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f locality/
+done
+```
+
+### test backend service failover
+
+```
+# scale to zero
+for CONTEXT in ${CLUSTER_1_NAME} 
+do 
+    kubectl --context=$CONTEXT -n backend scale --replicas=0 deployment/whereami-backend
+done
+
+# scale back up 
+for CONTEXT in ${CLUSTER_1_NAME} 
+do 
+    kubectl --context=$CONTEXT -n backend scale --replicas=3 deployment/whereami-backend
 done
 ```
