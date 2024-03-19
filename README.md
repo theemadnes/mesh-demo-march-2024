@@ -118,10 +118,13 @@ done
 ```
 for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
 do 
+    kubectl --context=$CONTEXT delete -f traffic-splitting/
     kubectl --context=$CONTEXT delete -f authz-explicit-deny/
     kubectl --context=$CONTEXT delete -f locality/
     kubectl --context=$CONTEXT delete -f authz/
     kubectl --context=$CONTEXT delete -f peer-auth/
+    kubectl --context=$CONTEXT -n backend apply -f traffic-splitting/subsets-dr.yaml
+    kubectl --context=$CONTEXT -n backend apply -f traffic-splitting/vs-0.yaml
 done
 
 ```
