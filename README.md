@@ -212,3 +212,5 @@ do
     kubectl --context=$CONTEXT -n backend scale --replicas=3 deployment/whereami-backend
 done
 ```
+
+### egress demo 
