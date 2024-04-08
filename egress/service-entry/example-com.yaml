@@ -1,0 +1,23 @@
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: example-com-ext
+  namespace: istio-egress
+  labels:
+    # Show this service and its telemetry in the Anthos Service Mesh page of the Google Cloud console
+    service.istio.io/canonical-name: example.com
+spec:
+  hosts:
+  - example.com
+  ports:
+  - number: 80
+    name: http
+    protocol: HTTP
+  - number: 443
+    name: tls
+    protocol: TLS
+  resolution: DNS
+  location: MESH_EXTERNAL
+  exportTo:
+  - 'team-x'
+  - 'istio-egress'

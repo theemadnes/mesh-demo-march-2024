@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: example-com-originate-tls
+  namespace: istio-egress
+spec:
+  host: example.com
+  subsets:
+    - name: example-com-originate-TLS
+      trafficPolicy:
+        portLevelSettings:
+        - port:
+            number: 443
+          tls:
+            mode: SIMPLE
+            sni: example.com

@@ -269,22 +269,97 @@ kubectl -n team-x exec -it \
 
 kubectl -n team-y exec -it \
     $(kubectl -n team-y get pod -l app=app-y -o jsonpath={.items..metadata.name}) \
-    -c whereami -- curl -v http://example.com
+    -c whereami -- curl -v http://example.com # BG
 
 kubectl -n team-y exec -it \
     $(kubectl -n team-y get pod -l app=app-y -o jsonpath={.items..metadata.name}) \
     -c whereami -- curl -v http://httpbin.org/json
+
+
+
+# implement sidecar
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/sidecar
+done
+
+
+# and now add the external services to the service registry 
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/service-entry
+done
+
+
+# so are we done? well.... no. 
+
 
 kubectl -n team-x exec -it \
     $(kubectl -n team-x get pod -l app=app-x -o jsonpath={.items..metadata.name}) \
     -c whereami -- curl http://127.0.0.1:15000
 
 # forget sidecar injection 
-# manipulate admin inteerface 
+# manipulate admin interface 
 
-# implement sidecar
+# so we need to route traffic through egress gateways... how? via
+
+# set up gateway and destination rules
 for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
 do 
-    kubectl --context=$CONTEXT apply -f egress/sidecar
+    kubectl --context=$CONTEXT apply -f egress/gw-dr
+done
+
+
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/virtual-service
+done
+
+# still doesn't work... why? 
+
+# check & stream logs
+kubectl -n istio-egress logs -f $(kubectl -n istio-egress get pod -l istio=egressgateway \
+    -o jsonpath="{.items[0].metadata.name}") istio-proxy
+
+# an authorization issue - remember when we left this, we required explict permissions for traffic flows? 
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/authz
+done
+
+kubectl -n team-x exec -it \
+    $(kubectl -n team-x get pod -l app=app-x -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl -v http://example.com
+
+kubectl -n team-x exec -it \
+    $(kubectl -n team-x get pod -l app=app-x -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl -v http://httpbin.org/json
+
+kubectl -n team-y exec -it \
+    $(kubectl -n team-y get pod -l app=app-y -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl -v http://example.com # BG because VS not exported to this namespace (team-y)
+
+kubectl -n team-y exec -it \
+    $(kubectl -n team-y get pod -l app=app-y -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl -v http://httpbin.org/json
+
+# implement TLS origination for example.com
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/tls-origination
+done
+```
+
+### reset to beginning
+
+```
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT delete -f egress/tls-origination
+    kubectl --context=$CONTEXT delete -f egress/authz
+    kubectl --context=$CONTEXT delete -f egress/virtual-service
+    kubectl --context=$CONTEXT delete -f egress/gw-dr
+    kubectl --context=$CONTEXT delete -f egress/service-entry
+    kubectl --context=$CONTEXT delete -f egress/sidecar
 done
 ```
