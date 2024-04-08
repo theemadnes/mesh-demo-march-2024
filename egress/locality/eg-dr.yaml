@@ -1,0 +1,19 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: istio-egress
+  namespace: istio-egress
+spec:
+  host: istio-egressgateway.istio-egress.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      http:
+        maxRequestsPerConnection: 10
+    loadBalancer:
+      simple: ROUND_ROBIN
+      localityLbSetting:
+        enabled: true
+    outlierDetection:
+      consecutive5xxErrors: 7
+      interval: 1s
+      baseEjectionTime: 1m

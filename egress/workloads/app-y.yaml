@@ -1,0 +1,148 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: whereami-tracer@e2m-private-test-01.iam.gserviceaccount.com
+  labels:
+    app: app-y
+  name: app-y
+  namespace: team-y
+---
+apiVersion: v1
+data:
+  BACKEND_ENABLED: "False"
+  BACKEND_SERVICE: http://whereami-backend.backend.svc.cluster.local
+  ECHO_HEADERS: "False"
+  GRPC_ENABLED: "False"
+  METADATA: app-y
+  TRACE_SAMPLING_RATIO: "0.00"
+kind: ConfigMap
+metadata:
+  labels:
+    app: app-y
+  name: app-y
+  namespace: team-y
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: app-y
+  name: app-y
+  namespace: team-y
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-y
+  template:
+    metadata:
+      labels:
+        app: app-y
+        version: v1
+    spec:
+      serviceAccountName: app-y
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: whereami
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - all
+          privileged: false
+          readOnlyRootFilesystem: true
+        image: us-docker.pkg.dev/google-samples/containers/gke/whereami:v1.2.22
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        ports:
+          - name: http
+            containerPort: 8080
+        livenessProbe:
+          httpGet:
+              path: /healthz
+              port: 8080
+              scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          timeoutSeconds: 1
+        env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: POD_SERVICE_ACCOUNT
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.serviceAccountName
+          - name: BACKEND_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: app-y
+                key: BACKEND_ENABLED
+          - name: BACKEND_SERVICE
+            valueFrom:
+              configMapKeyRef:
+                name: app-y
+                key: BACKEND_SERVICE
+          - name: METADATA
+            valueFrom:
+              configMapKeyRef:
+                name: app-y
+                key: METADATA
+          - name: ECHO_HEADERS
+            valueFrom:
+              configMapKeyRef:
+                name: app-y
+                key: ECHO_HEADERS
+          - name: GRPC_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: app-y
+                key: GRPC_ENABLED
+          - name: TRACE_SAMPLING_RATIO
+            valueFrom:
+              configMapKeyRef:
+                name: app-y
+                key: TRACE_SAMPLING_RATIO
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: app-y
+  name: app-y
+  namespace: team-y
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+    name: http # adding for Istio
+  selector:
+    app: app-y
+  type: ClusterIP

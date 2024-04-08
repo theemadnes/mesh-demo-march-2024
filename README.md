@@ -213,4 +213,78 @@ do
 done
 ```
 
-### egress demo 
+### egress demo setup
+
+```
+# create team-x and team-y namespaces 
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/namespaces
+done
+
+# map to KSAs
+gcloud iam service-accounts add-iam-policy-binding whereami-tracer@${PROJECT}.iam.gserviceaccount.com \
+    --role roles/iam.workloadIdentityUser \
+    --member "serviceAccount:${PROJECT}.svc.id.goog[team-x/app-x]"
+
+gcloud iam service-accounts add-iam-policy-binding whereami-tracer@${PROJECT}.iam.gserviceaccount.com \
+    --role roles/iam.workloadIdentityUser \
+    --member "serviceAccount:${PROJECT}.svc.id.goog[team-y/app-y]"
+
+# create team-x and team-y workloads
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/workloads
+done
+
+# deploy egress gateway stuff 
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT create namespace istio-egress
+    kubectl --context=$CONTEXT label namespace istio-egress istio.io/rev=asm-managed-rapid
+done
+
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply --recursive --filename egressgateway/
+done
+
+# apply locality
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/locality
+done
+```
+
+### testing out egress
+
+```
+kubectl -n team-x exec -it \
+    $(kubectl -n team-x get pod -l app=app-x -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl -v http://example.com
+
+kubectl -n team-x exec -it \
+    $(kubectl -n team-x get pod -l app=app-x -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl -v http://httpbin.org/json
+
+kubectl -n team-y exec -it \
+    $(kubectl -n team-y get pod -l app=app-y -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl -v http://example.com
+
+kubectl -n team-y exec -it \
+    $(kubectl -n team-y get pod -l app=app-y -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl -v http://httpbin.org/json
+
+kubectl -n team-x exec -it \
+    $(kubectl -n team-x get pod -l app=app-x -o jsonpath={.items..metadata.name}) \
+    -c whereami -- curl http://127.0.0.1:15000
+
+# forget sidecar injection 
+# manipulate admin inteerface 
+
+# implement sidecar
+for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
+do 
+    kubectl --context=$CONTEXT apply -f egress/sidecar
+done
+```
