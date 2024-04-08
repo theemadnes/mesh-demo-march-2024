@@ -344,6 +344,7 @@ kubectl -n team-y exec -it \
     -c whereami -- curl -v http://httpbin.org/json
 
 # implement TLS origination for example.com
+# show logs + talk about tracing / observability
 for CONTEXT in ${CLUSTER_1_NAME} ${CLUSTER_2_NAME}
 do 
     kubectl --context=$CONTEXT apply -f egress/tls-origination
